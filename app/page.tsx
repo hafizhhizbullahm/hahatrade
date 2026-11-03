@@ -2,13 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import TradingChart from "./components/TradingChart";
+import TVChart from "./components/TVChart";
 import { supabase } from "./lib/supabase";
 
-// Tipe Data Sinyal
 type Signal = {
   id: number;
-  symbol: string;
   timeframe: string;
   direction: string;
   quality: string;
@@ -21,25 +19,57 @@ type Signal = {
 export default function Home() {
   const [latestSignal, setLatestSignal] = useState<Signal | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // State untuk Statistik
+  const [stats, setStats] = useState({ total: 0, win: 0, loss: 0, winrate: 0 });
 
-  // Ambil data terbaru dari Supabase
   useEffect(() => {
-    async function fetchLatestSignal() {
-      const { data, error } = await supabase
+    async function fetchData() {
+      // 1. Ambil sinyal terbaru
+      const { data: latest } = await supabase
         .from("signals")
         .select("*")
         .order("id", { ascending: false })
         .limit(1)
         .single();
 
-      if (data) setLatestSignal(data);
+      if (latest) setLatestSignal(latest);
+
+      // 2. Ambil semua sinyal untuk menghitung statistik
+      const { data: allSignals } = await supabase
+        .from("signals")
+        .select("*")
+        .order("id", { ascending: false });
+
+      if (allSignals && allSignals.length > 0) {
+        let win = 0;
+        let loss = 0;
+        // Logika sederhana: jika harga terbaru sudah lewat TP -> Win, lewat SL -> Loss
+        // (Karena belum ada API harga live, kita pakai harga entry terbaru)
+        const currentPrice = allSignals[0].entry; 
+
+        allSignals.forEach((s) => {
+          if (s.direction === "BUY") {
+            if (currentPrice >= s.tp) win++;
+            else if (currentPrice <= s.sl) loss++;
+          } else {
+            if (currentPrice <= s.tp) win++;
+            else if (currentPrice >= s.sl) loss++;
+          }
+        });
+
+        const total = allSignals.length;
+        const winrate = total > 0 ? Math.round((win / (win + loss)) * 100) : 0;
+        
+        setStats({ total, win, loss, winrate: isNaN(winrate) ? 0 : winrate });
+      }
+
       setIsLoading(false);
     }
 
-    fetchLatestSignal();
-
+    fetchData();
     // Refresh data setiap 10 detik
-    const interval = setInterval(fetchLatestSignal, 10000);
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -85,7 +115,7 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* KOLOM KIRI (SINYAL) */}
+          {/* KOLOM KIRI (SINYAL & STATISTIK) */}
           <div className="lg:col-span-1 space-y-6">
             
             {/* CARD SINYAL DINAMIS */}
@@ -104,7 +134,11 @@ export default function Home() {
                   <div className="text-center mb-6">
                     <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Harga Entry (Kunci)</p>
                     <p className="text-4xl font-extrabold text-slate-900">{latestSignal.entry.toFixed(2)}</p>
-                    <p className="text-gray-400 text-xs mt-1">{new Date(latestSignal.pivot_time).toLocaleString("id-ID")}</p>
+                    <p className="text-gray-400 text-xs mt-1">
+                      {new Date(latestSignal.pivot_time).toLocaleString("id-ID", {
+                        timeZone: "Asia/Jakarta", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"
+                      }).replace(/\./g, ":")}
+                    </p>
                   </div>
 
                   <div className={`border rounded-xl p-4 mb-4 ${getQualityColor(latestSignal.quality)}`}>
@@ -138,22 +172,33 @@ export default function Home() {
                 <div className="text-center py-10 text-gray-500">Belum ada sinyal dari bot.</div>
               )}
               
-              <button className="w-full bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 rounded-xl transition">
-                Aktifkan Alert Telegram
-              </button>
+              <a 
+                href="https://t.me/AIRifan_signal_bot" // Ganti dengan username bot Bang
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="block w-full text-center bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 rounded-xl transition"
+              >
+                Buka Bot Telegram 🚀
+              </a>
             </div>
 
-            {/* CARD STATISTIK */}
+            {/* CARD STATISTIK (SUDAH DINAMIS) */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h3 className="font-bold text-slate-800 mb-4">Statistik Hari Ini</h3>
+              <h3 className="font-bold text-slate-800 mb-4">Statistik Keseluruhan</h3>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Total Sinyal</span>
-                  <span className="font-bold">-</span>
+                  <span className="font-bold">{stats.total}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-500">Winrate</span>
-                  <span className="font-bold text-green-600">-</span>
+                  <span className="font-bold text-green-600">{stats.winrate}%</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">Win / Loss</span>
+                  <span className="font-bold">
+                    <span className="text-green-600">{stats.win}W</span> / <span className="text-red-500">{stats.loss}L</span>
+                  </span>
                 </div>
               </div>
             </div>
@@ -172,9 +217,8 @@ export default function Home() {
                 </div>
               </div>
               
-              {/* GRAFIK TRADINGVIEW ASLI */}
               <div className="flex-1 bg-white rounded-xl border border-gray-200 relative overflow-hidden">
-                <TradingChart />
+                <TVChart />
               </div>
             </div>
           </div>

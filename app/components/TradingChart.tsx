@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { createChart, ColorType, CandlestickSeries } from "lightweight-charts";
+import { useEffect, useRef, useState } from "react";
+import { createChart, ColorType, CandlestickSeries, LineStyle } from "lightweight-charts";
 
-export default function TradingChart() {
+// Tambahkan props agar bisa menerima data sinyal
+interface TradingChartProps {
+  entry?: number;
+  sl?: number;
+  tp?: number;
+}
+
+export default function TradingChart({ entry, sl, tp }: TradingChartProps) {
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     if (!chartContainerRef.current) return;
@@ -20,13 +28,8 @@ export default function TradingChart() {
       },
       width: chartContainerRef.current.clientWidth,
       height: 500,
-      timeScale: {
-        borderColor: "#e2e8f0",
-        timeVisible: true,
-      },
-      rightPriceScale: {
-        borderColor: "#e2e8f0",
-      },
+      timeScale: { borderColor: "#e2e8f0", timeVisible: true },
+      rightPriceScale: { borderColor: "#e2e8f0" },
     });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
@@ -37,36 +40,34 @@ export default function TradingChart() {
       wickDownColor: "#ef5350",
     });
 
-    const data = [];
-    let basePrice = 3900;
-    let time = Math.floor(Date.now() / 1000) - 50 * 15 * 60; 
-    
-    for (let i = 0; i < 50; i++) {
-      const open = basePrice + (Math.random() - 0.5) * 10;
-      const close = open + (Math.random() - 0.5) * 15;
-      const high = Math.max(open, close) + Math.random() * 5;
-      const low = Math.min(open, close) - Math.random() * 5;
-      
-      data.push({ 
-        time: (time + i * 15 * 60) as any, 
-        open, high, low, close 
-      });
-      basePrice = close;
+    async function fetchChartData() {
+      try {
+        const res = await fetch("/api/chart");
+        const data = await res.json();
+        
+        if (Array.isArray(data)) {
+          candleSeries.setData(data);
+          chart.timeScale().fitContent(); 
+
+          // GAMBAR GARIS ENTRY, SL, TP JIKA DATA TERSEDIA
+          if (entry) {
+            candleSeries.createPriceLine({ price: entry, color: '#f59e0b', lineWidth: 2, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: 'Entry' });
+          }
+          if (sl) {
+            candleSeries.createPriceLine({ price: sl, color: '#ef5350', lineWidth: 2, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: 'SL' });
+          }
+          if (tp) {
+            candleSeries.createPriceLine({ price: tp, color: '#26a69a', lineWidth: 2, lineStyle: LineStyle.Dashed, axisLabelVisible: true, title: 'TP' });
+          }
+        }
+      } catch (error) {
+        console.error("Gagal load grafik:", error);
+      } finally {
+        setIsLoading(false);
+      }
     }
-    candleSeries.setData(data);
 
-    candleSeries.createPriceLine({ price: 3905.38, color: '#f59e0b', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: 'Entry' });
-    candleSeries.createPriceLine({ price: 3899.95, color: '#ef5350', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: 'SL' });
-    candleSeries.createPriceLine({ price: 3910.81, color: '#26a69a', lineWidth: 2, lineStyle: 2, axisLabelVisible: true, title: 'TP' });
-
-    candleSeries.createPriceLine({
-      price: data[data.length - 1].close,
-      color: "#2962ff",
-      lineWidth: 1,
-      lineStyle: 0,
-      axisLabelVisible: true,
-      title: "Live",
-    });
+    fetchChartData();
 
     const handleResize = () => {
       chart.applyOptions({ width: chartContainerRef.current?.clientWidth });
@@ -77,10 +78,15 @@ export default function TradingChart() {
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
-  }, []);
+  }, [entry, sl, tp]); // Re-render jika data entry/sl/tp berubah
 
   return (
     <div className="relative w-full h-[500px]">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white/80 z-10 text-gray-500 font-semibold">
+          Memuat Grafik...
+        </div>
+      )}
       <div ref={chartContainerRef} className="w-full h-full" />
     </div>
   );
