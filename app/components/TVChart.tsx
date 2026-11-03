@@ -31,7 +31,6 @@ export default function TVChart() {
       container_id: "tradingview_chart_container"
     });
 
-    // Buat div penampung
     const widgetDiv = document.createElement("div");
     widgetDiv.id = "tradingview_chart_container";
     widgetDiv.className = "tradingview-widget-container";

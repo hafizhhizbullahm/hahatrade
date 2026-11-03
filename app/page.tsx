@@ -19,13 +19,11 @@ type Signal = {
 export default function Home() {
   const [latestSignal, setLatestSignal] = useState<Signal | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  
-  // State untuk Statistik
   const [stats, setStats] = useState({ total: 0, win: 0, loss: 0, winrate: 0 });
 
   useEffect(() => {
     async function fetchData() {
-      // 1. Ambil sinyal terbaru
+      // 1. Ambil Sinyal Terbaru
       const { data: latest } = await supabase
         .from("signals")
         .select("*")
@@ -35,7 +33,7 @@ export default function Home() {
 
       if (latest) setLatestSignal(latest);
 
-      // 2. Ambil semua sinyal untuk menghitung statistik
+      // 2. Ambil Semua Sinyal untuk Statistik
       const { data: allSignals } = await supabase
         .from("signals")
         .select("*")
@@ -44,8 +42,6 @@ export default function Home() {
       if (allSignals && allSignals.length > 0) {
         let win = 0;
         let loss = 0;
-        // Logika sederhana: jika harga terbaru sudah lewat TP -> Win, lewat SL -> Loss
-        // (Karena belum ada API harga live, kita pakai harga entry terbaru)
         const currentPrice = allSignals[0].entry; 
 
         allSignals.forEach((s) => {
@@ -60,7 +56,6 @@ export default function Home() {
 
         const total = allSignals.length;
         const winrate = total > 0 ? Math.round((win / (win + loss)) * 100) : 0;
-        
         setStats({ total, win, loss, winrate: isNaN(winrate) ? 0 : winrate });
       }
 
@@ -68,7 +63,6 @@ export default function Home() {
     }
 
     fetchData();
-    // Refresh data setiap 10 detik
     const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
@@ -84,12 +78,17 @@ export default function Home() {
       {/* HEADER */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
         <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-2xl">😎</span>
+          <Link href="/" className="flex items-center gap-2">
+            {/* LOGO GAMBAR */}
+            <img 
+              src="/logo.png" 
+              alt="HahaTrade Logo" 
+              style={{ width: "90px", height: "90px", objectFit: "contain" }}   
+            />
             <h1 className="text-xl font-bold text-slate-800">
               Haha<span className="text-amber-500">Trade</span>
             </h1>
-          </div>
+          </Link>
           <nav className="hidden md:flex gap-6 text-sm font-medium text-gray-600">
             <Link href="/" className="text-amber-500">Dashboard</Link>
             <Link href="/history" className="hover:text-amber-500 transition">Riwayat</Link>
@@ -100,9 +99,6 @@ export default function Home() {
               <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
               Live
             </div>
-            <button className="bg-gray-100 p-2 rounded-full hover:bg-gray-200 transition">
-              👤
-            </button>
           </div>
         </div>
       </header>
@@ -115,10 +111,10 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* KOLOM KIRI (SINYAL & STATISTIK) */}
+          {/* KOLOM KIRI */}
           <div className="lg:col-span-1 space-y-6">
             
-            {/* CARD SINYAL DINAMIS */}
+            {/* CARD SINYAL */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <div className="flex justify-between items-center mb-4">
                 <h3 className="font-bold text-slate-800 text-lg">XAU/USD</h3>
@@ -173,7 +169,7 @@ export default function Home() {
               )}
               
               <a 
-                href="https://t.me/AIRifan_signal_bot" // Ganti dengan username bot Bang
+                href="https://t.me/AIRifan_signal_bot" 
                 target="_blank" 
                 rel="noopener noreferrer"
                 className="block w-full text-center bg-slate-800 hover:bg-slate-900 text-white font-semibold py-3 rounded-xl transition"
@@ -182,7 +178,7 @@ export default function Home() {
               </a>
             </div>
 
-            {/* CARD STATISTIK (SUDAH DINAMIS) */}
+            {/* CARD STATISTIK */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="font-bold text-slate-800 mb-4">Statistik Keseluruhan</h3>
               <div className="space-y-3">
@@ -209,14 +205,10 @@ export default function Home() {
           <div className="lg:col-span-2">
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 h-full min-h-[500px] flex flex-col">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold text-slate-800">Grafik Harga</h3>
-                <div className="flex gap-2">
-                  <button className="px-3 py-1 text-xs font-semibold bg-gray-100 rounded-md">1m</button>
-                  <button className="px-3 py-1 text-xs font-semibold bg-amber-500 text-white rounded-md">15m</button>
-                  <button className="px-3 py-1 text-xs font-semibold bg-gray-100 rounded-md">1h</button>
-                </div>
+                <h3 className="font-bold text-slate-800">Grafik Harga</h3>            
               </div>
               
+              {/* GRAFIK TRADINGVIEW ASLI */}
               <div className="flex-1 bg-white rounded-xl border border-gray-200 relative overflow-hidden">
                 <TVChart />
               </div>
