@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import TradingChart from "./components/TradingChart";
 import { supabase } from "./lib/supabase";
 
@@ -37,12 +38,11 @@ export default function Home() {
 
     fetchLatestSignal();
 
-    // Refresh data setiap 10 detik (Real-time polling)
+    // Refresh data setiap 10 detik
     const interval = setInterval(fetchLatestSignal, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  // Tentukan warna berdasarkan kualitas sinyal
   const getQualityColor = (quality: string) => {
     if (quality === "Kuat") return "bg-green-50 border-green-200 text-green-800";
     if (quality === "Sedang") return "bg-amber-50 border-amber-200 text-amber-800";
@@ -61,8 +61,8 @@ export default function Home() {
             </h1>
           </div>
           <nav className="hidden md:flex gap-6 text-sm font-medium text-gray-600">
-            <a href="#" className="text-amber-500">Dashboard</a>
-            <a href="#" className="hover:text-amber-500 transition">Riwayat</a>
+            <Link href="/" className="text-amber-500">Dashboard</Link>
+            <Link href="/history" className="hover:text-amber-500 transition">Riwayat</Link>
             <a href="#" className="hover:text-amber-500 transition">Panduan</a>
           </nav>
           <div className="flex items-center gap-3">
@@ -104,7 +104,7 @@ export default function Home() {
                   <div className="text-center mb-6">
                     <p className="text-gray-500 text-xs uppercase tracking-wider mb-1">Harga Entry (Kunci)</p>
                     <p className="text-4xl font-extrabold text-slate-900">{latestSignal.entry.toFixed(2)}</p>
-                    <p className="text-gray-400 text-xs mt-1">{latestSignal.pivot_time}</p>
+                    <p className="text-gray-400 text-xs mt-1">{new Date(latestSignal.pivot_time).toLocaleString("id-ID")}</p>
                   </div>
 
                   <div className={`border rounded-xl p-4 mb-4 ${getQualityColor(latestSignal.quality)}`}>
@@ -143,7 +143,7 @@ export default function Home() {
               </button>
             </div>
 
-            {/* CARD STATISTIK (Nanti disambungkan juga) */}
+            {/* CARD STATISTIK */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
               <h3 className="font-bold text-slate-800 mb-4">Statistik Hari Ini</h3>
               <div className="space-y-3">
